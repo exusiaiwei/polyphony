@@ -54,6 +54,7 @@ export interface CommentReply {
 }
 
 export interface Comment extends CommentReply {
+  isAnswer: boolean;
   replies: { nodes: CommentReply[] };
 }
 
@@ -93,6 +94,7 @@ export async function getDiscussion(
               databaseId
               body
               createdAt
+              isAnswer
               author { login }
               replies(first:50) {
                 nodes {
