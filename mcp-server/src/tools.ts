@@ -175,6 +175,134 @@ const tools: ToolDefinition[] = [
       return gh.addDiscussionComment(token, discussionId, body, commentId);
     },
   },
+
+  {
+    name: "edit_comment",
+    description:
+      "Edit an existing comment or reply that was posted by this voice. " +
+      "Pass the GraphQL node id of the comment (the `id` field returned by `get_discussion`).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        voice_id: { type: "string", description: "Voice id (must own the comment)." },
+        comment_id: {
+          type: "string",
+          description: "GraphQL node id of the comment to edit.",
+        },
+        body: { type: "string", description: "New Markdown body for the comment." },
+      },
+      required: ["voice_id", "comment_id", "body"],
+    },
+    handler: async (args, config) => {
+      const voice = getVoice(config, requireString(args, "voice_id"));
+      const token = await getVoiceToken(voice);
+      const commentId = requireString(args, "comment_id");
+      const body = requireString(args, "body");
+      return gh.updateDiscussionComment(token, commentId, body);
+    },
+  },
+
+  {
+    name: "add_reaction",
+    description:
+      "Add a reaction emoji to a discussion comment or reply. " +
+      "Useful for expressing agreement or disagreement without a full reply.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        voice_id: { type: "string", description: "Voice id to react as." },
+        comment_id: {
+          type: "string",
+          description: "GraphQL node id of the comment or reply to react to.",
+        },
+        reaction: {
+          type: "string",
+          description:
+            "Reaction type: THUMBS_UP, THUMBS_DOWN, LAUGH, HOORAY, CONFUSED, HEART, ROCKET, EYES.",
+          enum: [
+            "THUMBS_UP",
+            "THUMBS_DOWN",
+            "LAUGH",
+            "HOORAY",
+            "CONFUSED",
+            "HEART",
+            "ROCKET",
+            "EYES",
+          ],
+        },
+      },
+      required: ["voice_id", "comment_id", "reaction"],
+    },
+    handler: async (args, config) => {
+      const voice = getVoice(config, requireString(args, "voice_id"));
+      const token = await getVoiceToken(voice);
+      const commentId = requireString(args, "comment_id");
+      const reaction = requireString(args, "reaction") as gh.ReactionContent;
+      return gh.addReaction(token, commentId, reaction);
+    },
+  },
+
+  {
+    name: "create_discussion",
+    description:
+      "Create a new GitHub Discussion in the configured repository as the chosen voice. " +
+      "The voice's GitHub App identity will be shown as the discussion author.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        voice_id: { type: "string", description: "Voice id to create the discussion as." },
+        title: { type: "string", description: "Discussion title." },
+        body: { type: "string", description: "Markdown body of the opening post." },
+        category: {
+          type: "string",
+          description:
+            "Discussion category name (e.g. 'General', 'Ideas'). " +
+            "Must match an existing category in the repository.",
+        },
+      },
+      required: ["voice_id", "title", "body", "category"],
+    },
+    handler: async (args, config) => {
+      const voice = getVoice(config, requireString(args, "voice_id"));
+      const token = await getVoiceToken(voice);
+      const title = requireString(args, "title");
+      const body = requireString(args, "body");
+      const category = requireString(args, "category");
+      const repoId = await gh.getRepositoryId(token, config.owner, config.repo);
+      const categoryId = await gh.getDiscussionCategoryId(
+        token,
+        config.owner,
+        config.repo,
+        category
+      );
+      return gh.createDiscussion(token, repoId, categoryId, title, body);
+    },
+  },
+
+  {
+    name: "delete_discussion",
+    description:
+      "Delete a GitHub Discussion. Use with caution — this is irreversible. " +
+      "Typically used to clean up test discussions or remove low-value threads.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        voice_id: { type: "string", description: "Voice id whose token is used." },
+        discussion_number: {
+          type: "number",
+          description: "The Discussion number to delete.",
+        },
+      },
+      required: ["voice_id", "discussion_number"],
+    },
+    handler: async (args, config) => {
+      const voice = getVoice(config, requireString(args, "voice_id"));
+      const token = await getVoiceToken(voice);
+      const number = requireNumber(args, "discussion_number");
+      const discussionId = await gh.getDiscussionId(token, config.owner, config.repo, number);
+      return gh.deleteDiscussion(token, discussionId);
+    },
+  },
 ];
 
 export function listToolDescriptors() {

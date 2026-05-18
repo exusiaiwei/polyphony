@@ -162,3 +162,155 @@ export async function addDiscussionComment(
   );
   return data.addDiscussionComment.comment;
 }
+
+export async function updateDiscussionComment(
+  token: string,
+  commentId: string,
+  body: string
+): Promise<PostedComment> {
+  const data = await client(token)<{
+    updateDiscussionComment: { comment: PostedComment };
+  }>(
+    `mutation($commentId:ID!, $body:String!) {
+      updateDiscussionComment(input:{ commentId:$commentId, body:$body }) {
+        comment {
+          id
+          url
+          body
+          createdAt
+          author { login }
+        }
+      }
+    }`,
+    { commentId, body }
+  );
+  return data.updateDiscussionComment.comment;
+}
+
+export type ReactionContent =
+  | "THUMBS_UP"
+  | "THUMBS_DOWN"
+  | "LAUGH"
+  | "HOORAY"
+  | "CONFUSED"
+  | "HEART"
+  | "ROCKET"
+  | "EYES";
+
+export async function addReaction(
+  token: string,
+  subjectId: string,
+  content: ReactionContent
+): Promise<{ content: string; user: { login: string } | null }> {
+  const data = await client(token)<{
+    addReaction: { reaction: { content: string; user: { login: string } | null } };
+  }>(
+    `mutation($subjectId:ID!, $content:ReactionContent!) {
+      addReaction(input:{ subjectId:$subjectId, content:$content }) {
+        reaction {
+          content
+          user { login }
+        }
+      }
+    }`,
+    { subjectId, content }
+  );
+  return data.addReaction.reaction;
+}
+
+export async function getRepositoryId(
+  token: string,
+  owner: string,
+  repo: string
+): Promise<string> {
+  const data = await client(token)<{ repository: { id: string } }>(
+    `query($owner:String!, $repo:String!) {
+      repository(owner:$owner, name:$repo) { id }
+    }`,
+    { owner, repo }
+  );
+  return data.repository.id;
+}
+
+export async function getDiscussionCategoryId(
+  token: string,
+  owner: string,
+  repo: string,
+  categoryName: string
+): Promise<string> {
+  const data = await client(token)<{
+    repository: {
+      discussionCategories: { nodes: { id: string; name: string }[] };
+    };
+  }>(
+    `query($owner:String!, $repo:String!) {
+      repository(owner:$owner, name:$repo) {
+        discussionCategories(first:25) {
+          nodes { id name }
+        }
+      }
+    }`,
+    { owner, repo }
+  );
+  const cat = data.repository.discussionCategories.nodes.find(
+    (c) => c.name.toLowerCase() === categoryName.toLowerCase()
+  );
+  if (!cat) {
+    const known = data.repository.discussionCategories.nodes
+      .map((c) => c.name)
+      .join(", ");
+    throw new Error(
+      `Discussion category "${categoryName}" not found. Available: ${known}`
+    );
+  }
+  return cat.id;
+}
+
+export interface CreatedDiscussion {
+  id: string;
+  number: number;
+  title: string;
+  url: string;
+}
+
+export async function createDiscussion(
+  token: string,
+  repositoryId: string,
+  categoryId: string,
+  title: string,
+  body: string
+): Promise<CreatedDiscussion> {
+  const data = await client(token)<{
+    createDiscussion: { discussion: CreatedDiscussion };
+  }>(
+    `mutation($repositoryId:ID!, $categoryId:ID!, $title:String!, $body:String!) {
+      createDiscussion(input:{ repositoryId:$repositoryId, categoryId:$categoryId, title:$title, body:$body }) {
+        discussion {
+          id
+          number
+          title
+          url
+        }
+      }
+    }`,
+    { repositoryId, categoryId, title, body }
+  );
+  return data.createDiscussion.discussion;
+}
+
+export async function deleteDiscussion(
+  token: string,
+  discussionId: string
+): Promise<{ id: string }> {
+  const data = await client(token)<{
+    deleteDiscussion: { discussion: { id: string } };
+  }>(
+    `mutation($id:ID!) {
+      deleteDiscussion(input:{ id:$id }) {
+        discussion { id }
+      }
+    }`,
+    { id: discussionId }
+  );
+  return data.deleteDiscussion.discussion;
+}
