@@ -27,11 +27,20 @@ const VoiceSchema = z
     message: "Each voice needs either github_token_env (PAT) or github_app.",
   });
 
-const ConfigFileSchema = z.object({
+const RepositoryPattern = /^[^/\s]+\/[^/\s]+$/;
+
+const VoicesFileSchema = z.object({
   repository: z
     .string()
-    .regex(/^[^/\s]+\/[^/\s]+$/, "repository must be in the form owner/repo"),
+    .regex(RepositoryPattern, "repository must be in the form owner/repo")
+    .optional(),
   voices: z.array(VoiceSchema).min(1),
+});
+
+const RepoFileSchema = z.object({
+  repository: z
+    .string()
+    .regex(RepositoryPattern, "repository must be in the form owner/repo"),
 });
 
 export type Voice = z.infer<typeof VoiceSchema>;
@@ -42,11 +51,29 @@ export interface Config {
   voices: Voice[];
 }
 
-export async function loadConfig(path: string): Promise<Config> {
+export interface VoicesResult {
+  voices: Voice[];
+  repository?: string;
+}
+
+export async function loadVoicesFile(path: string): Promise<VoicesResult> {
   const raw = await readFile(path, "utf-8");
-  const parsed = ConfigFileSchema.parse(parse(raw));
-  const [owner, repo] = parsed.repository.split("/");
-  return { owner, repo, voices: parsed.voices };
+  const parsed = VoicesFileSchema.parse(parse(raw));
+  return { voices: parsed.voices, repository: parsed.repository };
+}
+
+export async function loadRepoFile(path: string): Promise<string> {
+  const raw = await readFile(path, "utf-8");
+  const parsed = RepoFileSchema.parse(parse(raw));
+  return parsed.repository;
+}
+
+export function buildConfig(
+  voices: Voice[],
+  repository: string
+): Config {
+  const [owner, repo] = repository.split("/");
+  return { owner, repo, voices };
 }
 
 export function getVoice(config: Config, id: string): Voice {

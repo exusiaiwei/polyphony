@@ -8,10 +8,14 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { loadConfig } from "./config.js";
+import {
+  buildConfig,
+  loadVoicesFile,
+  loadRepoFile,
+} from "./config.js";
 import { callTool, listToolDescriptors } from "./tools.js";
 
-function resolveConfigPath(): string {
+function resolveVoicesPath(): string {
   if (process.env.POLYPHONY_CONFIG) {
     return process.env.POLYPHONY_CONFIG;
   }
@@ -23,7 +27,7 @@ function resolveConfigPath(): string {
   if (existsSync(userConfig)) return userConfig;
 
   throw new Error(
-    "No Polyphony config found. Searched:\n" +
+    "No Polyphony voices config found. Searched:\n" +
       "  1. $POLYPHONY_CONFIG (not set)\n" +
       `  2. ./polyphony.yaml (not found)\n` +
       `  3. ${userConfig} (not found)\n` +
@@ -31,12 +35,40 @@ function resolveConfigPath(): string {
   );
 }
 
+async function resolveRepository(
+  legacyRepo?: string
+): Promise<string> {
+  if (process.env.POLYPHONY_REPO) {
+    return process.env.POLYPHONY_REPO;
+  }
+
+  const local = "polyphony.yaml";
+  if (existsSync(local)) {
+    try {
+      return await loadRepoFile(local);
+    } catch {
+      // local file may be a voices-only config — fall through
+    }
+  }
+
+  if (legacyRepo) return legacyRepo;
+
+  throw new Error(
+    "No target repository configured. Set one of:\n" +
+      "  1. $POLYPHONY_REPO=owner/repo\n" +
+      "  2. ./polyphony.yaml with `repository: owner/repo`\n" +
+      "  3. `repository` field in your voices config (legacy)"
+  );
+}
+
 async function main() {
-  const configPath = resolveConfigPath();
-  const config = await loadConfig(configPath);
+  const voicesPath = resolveVoicesPath();
+  const { voices, repository: legacyRepo } = await loadVoicesFile(voicesPath);
+  const repository = await resolveRepository(legacyRepo);
+  const config = buildConfig(voices, repository);
 
   const server = new Server(
-    { name: "polyphony", version: "0.2.2" },
+    { name: "polyphony", version: "0.3.0" },
     { capabilities: { tools: {} } }
   );
 
