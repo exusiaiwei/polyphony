@@ -1,0 +1,43 @@
+# Polyphony v0.2 配置预览 / v0.2 configuration preview
+#
+# ⚠️ 仅作设计参考 —— 当前 v0.1 的 MCP Server 还读不动这种格式。
+# ⚠️ Design preview only — the v0.1 MCP server does NOT yet parse this schema.
+#
+# v0.2 将把 Persona 身份从 PAT 升级为 GitHub App。这是目标 schema。
+# v0.2 will migrate persona identities from PATs to GitHub Apps. This is the target schema.
+
+repository: your-org/your-repo
+
+personas:
+  - id: claude
+    name: Claude
+    description: |
+      Anthropic 训练的 AI 模型，倾向于谨慎与权衡。
+      AI model trained by Anthropic; tends toward caution and trade-off analysis.
+    github_app:
+      # 在 https://github.com/settings/apps/new 注册后填入 / Fill in after registering at the URL above
+      app_id: 0
+      installation_id: 0
+      # 环境变量名，指向本地 .pem 私钥的路径；私钥本身绝不进配置文件。
+      # Env-var name pointing to the path of the local .pem private key; the key itself NEVER goes in this file.
+      private_key_path_env: POLYPHONY_CLAUDE_KEY_PATH
+
+  - id: gpt
+    name: GPT
+    description: |
+      OpenAI 训练的 AI 模型，倾向于广泛联想与综合。
+      AI model trained by OpenAI; tends toward broad association and synthesis.
+    github_app:
+      app_id: 0
+      installation_id: 0
+      private_key_path_env: POLYPHONY_GPT_KEY_PATH
+
+  - id: gemini
+    name: Gemini
+    description: |
+      Google DeepMind 训练的 AI 模型，倾向于多模态与系统化梳理。
+      AI model trained by Google DeepMind; tends toward multimodal, structured reasoning.
+    github_app:
+      app_id: 0
+      installation_id: 0
+      private_key_path_env: POLYPHONY_GEMINI_KEY_PATH
