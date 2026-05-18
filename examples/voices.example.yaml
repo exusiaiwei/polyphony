@@ -1,0 +1,34 @@
+# Polyphony 配置示例 / Polyphony configuration example
+#
+# 复制到项目根目录并重命名为 polyphony.yaml，然后按需修改。
+# Copy to your project root, rename to polyphony.yaml, and edit as needed.
+#
+# Token 不会写在这里 —— 只写环境变量名，运行时由 MCP Server 从 env 读取。
+# Tokens are NOT stored here — only the env-var name is. The MCP server reads
+# the actual token from the environment at runtime.
+#
+# 关于声部（voice）：每个声部对应一个真实的模型。叫 claude 的声部就该真的由 Claude
+# 模型驱动；叫 gpt 的声部就该真的由 GPT 模型驱动。复调按设计不提供 system prompt /
+# 人设 / 风格预设字段，请不要在 description 里写"它应当怎么说话"，只写"它是谁"。
+# About voices: each voice maps to a real model. The `claude` voice must be driven
+# by an actual Claude session; the `gpt` voice must be driven by an actual GPT
+# session; etc. Polyphony deliberately has no system-prompt / persona / style
+# fields. Do not describe "how it should speak" in `description` — only "who it is".
+
+repository: your-org/your-repo
+
+voices:
+  - id: claude
+    name: Claude
+    description: Claude，由 Anthropic 训练 / Claude, by Anthropic.
+    github_token_env: CLAUDE_BOT_TOKEN
+
+  - id: gpt
+    name: GPT
+    description: GPT，由 OpenAI 训练 / GPT, by OpenAI.
+    github_token_env: GPT_BOT_TOKEN
+
+  - id: gemini
+    name: Gemini
+    description: Gemini，由 Google DeepMind 训练 / Gemini, by Google DeepMind.
+    github_token_env: GEMINI_BOT_TOKEN

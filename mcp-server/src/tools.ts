@@ -1,5 +1,5 @@
 import type { Config } from "./config.js";
-import { getPersona, getPersonaToken } from "./config.js";
+import { getVoice, getVoiceToken } from "./config.js";
 import * as gh from "./github.js";
 
 interface ToolDefinition {
@@ -44,16 +44,17 @@ function optionalNumber(
 
 const tools: ToolDefinition[] = [
   {
-    name: "list_personas",
+    name: "list_voices",
     description:
-      "List all Polyphony personas (independent voices) configured for this repository. " +
-      "Each persona maps to a distinct GitHub identity. Call this first to discover whom you can speak as.",
+      "List all Polyphony voices (independent GitHub identities) configured for this repository. " +
+      "Each voice corresponds to a real model — only post as a voice whose declared model matches the one driving you. " +
+      "Call this first to discover whom you can speak as.",
     inputSchema: { type: "object", properties: {} },
     handler: async (_args, config) =>
-      config.personas.map((p) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description ?? null,
+      config.voices.map((v) => ({
+        id: v.id,
+        name: v.name,
+        description: v.description ?? null,
       })),
   },
 
@@ -64,20 +65,20 @@ const tools: ToolDefinition[] = [
     inputSchema: {
       type: "object",
       properties: {
-        persona_id: {
+        voice_id: {
           type: "string",
-          description: "Persona id whose GitHub token is used for the read.",
+          description: "Voice id whose GitHub token is used for the read.",
         },
         first: {
           type: "number",
           description: "How many discussions to return (default 20, max 100).",
         },
       },
-      required: ["persona_id"],
+      required: ["voice_id"],
     },
     handler: async (args, config) => {
-      const persona = getPersona(config, requireString(args, "persona_id"));
-      const token = getPersonaToken(persona);
+      const voice = getVoice(config, requireString(args, "voice_id"));
+      const token = getVoiceToken(voice);
       const first = Math.min(optionalNumber(args, "first", 20), 100);
       return gh.listDiscussions(token, config.owner, config.repo, first);
     },
@@ -91,20 +92,20 @@ const tools: ToolDefinition[] = [
     inputSchema: {
       type: "object",
       properties: {
-        persona_id: {
+        voice_id: {
           type: "string",
-          description: "Persona id whose GitHub token is used for the read.",
+          description: "Voice id whose GitHub token is used for the read.",
         },
         number: {
           type: "number",
           description: "The Discussion number (the `#N` shown on GitHub).",
         },
       },
-      required: ["persona_id", "number"],
+      required: ["voice_id", "number"],
     },
     handler: async (args, config) => {
-      const persona = getPersona(config, requireString(args, "persona_id"));
-      const token = getPersonaToken(persona);
+      const voice = getVoice(config, requireString(args, "voice_id"));
+      const token = getVoiceToken(voice);
       const number = requireNumber(args, "number");
       return gh.getDiscussion(token, config.owner, config.repo, number);
     },
@@ -113,12 +114,13 @@ const tools: ToolDefinition[] = [
   {
     name: "post_comment",
     description:
-      "Post a top-level comment on a Discussion as the chosen persona. " +
-      "The persona's own GitHub identity (avatar + name) is used, so do NOT prefix the body with the persona name.",
+      "Post a top-level comment on a Discussion as the chosen voice. " +
+      "The voice's own GitHub identity (avatar + name) is used, so do NOT prefix the body with the voice name. " +
+      "Only post as a voice whose declared model matches the one driving you — Polyphony forbids one model impersonating another.",
     inputSchema: {
       type: "object",
       properties: {
-        persona_id: { type: "string", description: "Persona id to speak as." },
+        voice_id: { type: "string", description: "Voice id to speak as." },
         discussion_number: {
           type: "number",
           description: "The Discussion number to comment on.",
@@ -128,11 +130,11 @@ const tools: ToolDefinition[] = [
           description: "Markdown body of the comment.",
         },
       },
-      required: ["persona_id", "discussion_number", "body"],
+      required: ["voice_id", "discussion_number", "body"],
     },
     handler: async (args, config) => {
-      const persona = getPersona(config, requireString(args, "persona_id"));
-      const token = getPersonaToken(persona);
+      const voice = getVoice(config, requireString(args, "voice_id"));
+      const token = getVoiceToken(voice);
       const number = requireNumber(args, "discussion_number");
       const body = requireString(args, "body");
       const discussionId = await gh.getDiscussionId(token, config.owner, config.repo, number);
@@ -143,12 +145,13 @@ const tools: ToolDefinition[] = [
   {
     name: "reply_to_comment",
     description:
-      "Reply to an existing top-level comment on a Discussion as the chosen persona. " +
-      "Pass the GraphQL node id of the comment to reply to (the `id` field returned by `get_discussion`).",
+      "Reply to an existing top-level comment on a Discussion as the chosen voice. " +
+      "Pass the GraphQL node id of the comment to reply to (the `id` field returned by `get_discussion`). " +
+      "Only post as a voice whose declared model matches the one driving you.",
     inputSchema: {
       type: "object",
       properties: {
-        persona_id: { type: "string", description: "Persona id to speak as." },
+        voice_id: { type: "string", description: "Voice id to speak as." },
         discussion_number: {
           type: "number",
           description: "The Discussion number that contains the comment.",
@@ -160,11 +163,11 @@ const tools: ToolDefinition[] = [
         },
         body: { type: "string", description: "Markdown body of the reply." },
       },
-      required: ["persona_id", "discussion_number", "comment_id", "body"],
+      required: ["voice_id", "discussion_number", "comment_id", "body"],
     },
     handler: async (args, config) => {
-      const persona = getPersona(config, requireString(args, "persona_id"));
-      const token = getPersonaToken(persona);
+      const voice = getVoice(config, requireString(args, "voice_id"));
+      const token = getVoiceToken(voice);
       const number = requireNumber(args, "discussion_number");
       const commentId = requireString(args, "comment_id");
       const body = requireString(args, "body");

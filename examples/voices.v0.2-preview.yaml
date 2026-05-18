@@ -3,17 +3,15 @@
 # ⚠️ 仅作设计参考 —— 当前 v0.1 的 MCP Server 还读不动这种格式。
 # ⚠️ Design preview only — the v0.1 MCP server does NOT yet parse this schema.
 #
-# v0.2 将把 Persona 身份从 PAT 升级为 GitHub App。这是目标 schema。
-# v0.2 will migrate persona identities from PATs to GitHub Apps. This is the target schema.
+# v0.2 将把声部身份从 PAT 升级为 GitHub App。这是目标 schema。
+# v0.2 will migrate voice identities from PATs to GitHub Apps. This is the target schema.
 
 repository: your-org/your-repo
 
-personas:
+voices:
   - id: claude
     name: Claude
-    description: |
-      Anthropic 训练的 AI 模型，倾向于谨慎与权衡。
-      AI model trained by Anthropic; tends toward caution and trade-off analysis.
+    description: Claude，由 Anthropic 训练 / Claude, by Anthropic.
     github_app:
       # 在 https://github.com/settings/apps/new 注册后填入 / Fill in after registering at the URL above
       app_id: 0
@@ -24,9 +22,7 @@ personas:
 
   - id: gpt
     name: GPT
-    description: |
-      OpenAI 训练的 AI 模型，倾向于广泛联想与综合。
-      AI model trained by OpenAI; tends toward broad association and synthesis.
+    description: GPT，由 OpenAI 训练 / GPT, by OpenAI.
     github_app:
       app_id: 0
       installation_id: 0
@@ -34,9 +30,7 @@ personas:
 
   - id: gemini
     name: Gemini
-    description: |
-      Google DeepMind 训练的 AI 模型，倾向于多模态与系统化梳理。
-      AI model trained by Google DeepMind; tends toward multimodal, structured reasoning.
+    description: Gemini，由 Google DeepMind 训练 / Gemini, by Google DeepMind.
     github_app:
       app_id: 0
       installation_id: 0
