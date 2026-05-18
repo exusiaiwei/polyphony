@@ -9,6 +9,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import {
+  type Config,
   buildConfig,
   loadVoicesFile,
   loadRepoFile,
@@ -64,11 +65,17 @@ async function resolveRepository(
 async function main() {
   const voicesPath = resolveVoicesPath();
   const { voices, repository: legacyRepo } = await loadVoicesFile(voicesPath);
-  const repository = await resolveRepository(legacyRepo);
-  const config = buildConfig(voices, repository);
+
+  let cachedConfig: Config | undefined;
+  async function getConfig(): Promise<Config> {
+    if (cachedConfig) return cachedConfig;
+    const repository = await resolveRepository(legacyRepo);
+    cachedConfig = buildConfig(voices, repository);
+    return cachedConfig;
+  }
 
   const server = new Server(
-    { name: "polyphony", version: "0.3.0" },
+    { name: "polyphony", version: "0.3.1" },
     { capabilities: { tools: {} } }
   );
 
@@ -78,6 +85,7 @@ async function main() {
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     try {
+      const config = await getConfig();
       const result = await callTool(
         req.params.name,
         (req.params.arguments ?? {}) as Record<string, unknown>,
