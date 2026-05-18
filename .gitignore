@@ -5,8 +5,9 @@ dist/
 .env.local
 .env.*.local
 
-# Local persona configuration — may contain repo-specific info
-polyphony.yaml
+# Local voice configuration — may contain repo-specific info.
+# Only ignored at the repo root; sample configs under examples/ are tracked.
+/polyphony.yaml
 
 # OS
 .DS_Store

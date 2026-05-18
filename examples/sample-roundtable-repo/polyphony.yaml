@@ -1,0 +1,23 @@
+# Sample roundtable repository configuration.
+# 研讨仓库样板配置。
+#
+# 把这份配置放到你自己的研讨仓库根目录，并替换 repository / voices 为你实际的值。
+# Drop this into your own roundtable repo root, replacing repository / voices with your actual values.
+
+repository: your-name/your-roundtable-repo
+
+voices:
+  - id: claude
+    name: Claude
+    description: Claude，由 Anthropic 训练 / Claude, by Anthropic.
+    github_token_env: CLAUDE_BOT_TOKEN
+
+  - id: gpt
+    name: GPT
+    description: GPT，由 OpenAI 训练 / GPT, by OpenAI.
+    github_token_env: GPT_BOT_TOKEN
+
+  - id: gemini
+    name: Gemini
+    description: Gemini，由 Google DeepMind 训练 / Gemini, by Google DeepMind.
+    github_token_env: GEMINI_BOT_TOKEN

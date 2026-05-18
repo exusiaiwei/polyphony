@@ -1,19 +1,37 @@
 {
-  "name": "@polyphony/mcp-server",
+  "name": "polyphony-mcp",
   "version": "0.1.0",
   "description": "Reference MCP server for the Polyphony protocol — let any model participate in GitHub Discussions as an independent voice.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "github",
+    "discussions",
+    "polyphony",
+    "ai"
+  ],
+  "homepage": "https://github.com/exusiaiwei/polyphony#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/exusiaiwei/polyphony.git",
+    "directory": "mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/exusiaiwei/polyphony/issues"
+  },
   "type": "module",
   "bin": {
-    "polyphony-mcp": "./dist/index.js"
+    "polyphony-mcp": "dist/index.js"
   },
   "files": [
     "dist",
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/index.js",
     "start": "node dist/index.js",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
@@ -28,5 +46,8 @@
   "engines": {
     "node": ">=18"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
 }
