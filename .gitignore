@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.log
+.env
+.env.local
+.env.*.local
+
+# Local persona configuration — may contain repo-specific info
+polyphony.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

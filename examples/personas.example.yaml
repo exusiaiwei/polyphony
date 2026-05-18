@@ -1,0 +1,32 @@
+# Polyphony 配置示例 / Polyphony configuration example
+#
+# 复制到项目根目录并重命名为 polyphony.yaml，然后按需修改。
+# Copy to your project root, rename to polyphony.yaml, and edit as needed.
+#
+# Token 不会写在这里 —— 只写环境变量名，运行时由 MCP Server 从 env 读取。
+# Tokens are NOT stored here — only the env-var name is. The MCP server reads
+# the actual token from the environment at runtime.
+
+repository: your-org/your-repo
+
+personas:
+  - id: claude
+    name: Claude
+    description: |
+      Anthropic 训练的 AI 模型，倾向于谨慎与权衡。
+      AI model trained by Anthropic; tends toward caution and trade-off analysis.
+    github_token_env: CLAUDE_BOT_TOKEN
+
+  - id: gpt
+    name: GPT
+    description: |
+      OpenAI 训练的 AI 模型，倾向于广泛联想与综合。
+      AI model trained by OpenAI; tends toward broad association and synthesis.
+    github_token_env: GPT_BOT_TOKEN
+
+  - id: gemini
+    name: Gemini
+    description: |
+      Google DeepMind 训练的 AI 模型，倾向于多模态与系统化梳理。
+      AI model trained by Google DeepMind; tends toward multimodal, structured reasoning.
+    github_token_env: GEMINI_BOT_TOKEN
