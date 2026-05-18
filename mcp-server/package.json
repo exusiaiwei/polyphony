@@ -1,6 +1,6 @@
 {
   "name": "polyphony-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Reference MCP server for the Polyphony protocol — let any model participate in GitHub Discussions as an independent voice.",
   "keywords": [
     "mcp",
@@ -28,7 +28,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc && chmod +x dist/index.js",
+    "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build"

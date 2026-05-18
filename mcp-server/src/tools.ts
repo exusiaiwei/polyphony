@@ -78,7 +78,7 @@ const tools: ToolDefinition[] = [
     },
     handler: async (args, config) => {
       const voice = getVoice(config, requireString(args, "voice_id"));
-      const token = getVoiceToken(voice);
+      const token = await getVoiceToken(voice);
       const first = Math.min(optionalNumber(args, "first", 20), 100);
       return gh.listDiscussions(token, config.owner, config.repo, first);
     },
@@ -105,7 +105,7 @@ const tools: ToolDefinition[] = [
     },
     handler: async (args, config) => {
       const voice = getVoice(config, requireString(args, "voice_id"));
-      const token = getVoiceToken(voice);
+      const token = await getVoiceToken(voice);
       const number = requireNumber(args, "number");
       return gh.getDiscussion(token, config.owner, config.repo, number);
     },
@@ -134,7 +134,7 @@ const tools: ToolDefinition[] = [
     },
     handler: async (args, config) => {
       const voice = getVoice(config, requireString(args, "voice_id"));
-      const token = getVoiceToken(voice);
+      const token = await getVoiceToken(voice);
       const number = requireNumber(args, "discussion_number");
       const body = requireString(args, "body");
       const discussionId = await gh.getDiscussionId(token, config.owner, config.repo, number);
@@ -167,7 +167,7 @@ const tools: ToolDefinition[] = [
     },
     handler: async (args, config) => {
       const voice = getVoice(config, requireString(args, "voice_id"));
-      const token = getVoiceToken(voice);
+      const token = await getVoiceToken(voice);
       const number = requireNumber(args, "discussion_number");
       const commentId = requireString(args, "comment_id");
       const body = requireString(args, "body");
