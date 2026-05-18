@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -8,12 +11,32 @@ import {
 import { loadConfig } from "./config.js";
 import { callTool, listToolDescriptors } from "./tools.js";
 
+function resolveConfigPath(): string {
+  if (process.env.POLYPHONY_CONFIG) {
+    return process.env.POLYPHONY_CONFIG;
+  }
+
+  const local = "polyphony.yaml";
+  if (existsSync(local)) return local;
+
+  const userConfig = join(homedir(), ".config", "polyphony", "config.yaml");
+  if (existsSync(userConfig)) return userConfig;
+
+  throw new Error(
+    "No Polyphony config found. Searched:\n" +
+      "  1. $POLYPHONY_CONFIG (not set)\n" +
+      `  2. ./polyphony.yaml (not found)\n` +
+      `  3. ${userConfig} (not found)\n` +
+      "Create one of these or set POLYPHONY_CONFIG to your config path."
+  );
+}
+
 async function main() {
-  const configPath = process.env.POLYPHONY_CONFIG ?? "polyphony.yaml";
+  const configPath = resolveConfigPath();
   const config = await loadConfig(configPath);
 
   const server = new Server(
-    { name: "polyphony", version: "0.2.1" },
+    { name: "polyphony", version: "0.2.2" },
     { capabilities: { tools: {} } }
   );
 
