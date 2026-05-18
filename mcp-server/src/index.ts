@@ -13,7 +13,7 @@ async function main() {
   const config = await loadConfig(configPath);
 
   const server = new Server(
-    { name: "polyphony", version: "0.2.0" },
+    { name: "polyphony", version: "0.2.1" },
     { capabilities: { tools: {} } }
   );
 
