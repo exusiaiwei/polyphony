@@ -298,6 +298,79 @@ export async function createDiscussion(
   return data.createDiscussion.discussion;
 }
 
+export interface DiscussionWithComments {
+  number: number;
+  title: string;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+  body: string;
+  author: { login: string } | null;
+  category: { name: string } | null;
+  comments: {
+    nodes: Array<{
+      id: string;
+      body: string;
+      createdAt: string;
+      author: { login: string } | null;
+      replies: {
+        nodes: Array<{
+          id: string;
+          body: string;
+          createdAt: string;
+          author: { login: string } | null;
+        }>;
+      };
+    }>;
+  };
+}
+
+export async function getRecentDiscussions(
+  token: string,
+  owner: string,
+  repo: string,
+  first: number
+): Promise<DiscussionWithComments[]> {
+  const data = await client(token)<{
+    repository: { discussions: { nodes: DiscussionWithComments[] } };
+  }>(
+    `query($owner:String!, $repo:String!, $first:Int!) {
+      repository(owner:$owner, name:$repo) {
+        discussions(first:$first, orderBy:{field:UPDATED_AT, direction:DESC}) {
+          nodes {
+            number
+            title
+            url
+            createdAt
+            updatedAt
+            body
+            author { login }
+            category { name }
+            comments(first:100) {
+              nodes {
+                id
+                body
+                createdAt
+                author { login }
+                replies(first:50) {
+                  nodes {
+                    id
+                    body
+                    createdAt
+                    author { login }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }`,
+    { owner, repo, first }
+  );
+  return data.repository.discussions.nodes;
+}
+
 export async function deleteDiscussion(
   token: string,
   discussionId: string

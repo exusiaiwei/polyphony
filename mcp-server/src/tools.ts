@@ -2,6 +2,8 @@ import type { Config } from "./config.js";
 import { getVoice, getVoiceToken } from "./config.js";
 import * as gh from "./github.js";
 
+const lastCheckedAt = new Map<string, string>();
+
 interface ToolDefinition {
   name: string;
   description: string;
@@ -301,6 +303,100 @@ const tools: ToolDefinition[] = [
       const number = requireNumber(args, "discussion_number");
       const discussionId = await gh.getDiscussionId(token, config.owner, config.repo, number);
       return gh.deleteDiscussion(token, discussionId);
+    },
+  },
+  {
+    name: "check_updates",
+    description:
+      "Check for new activity in the repository's discussions since the last time this voice checked. " +
+      "Returns new discussions, new comments, and new replies that appeared since the last call. " +
+      "Call this to catch up on what happened while you were away.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        voice_id: { type: "string", description: "Voice id whose token is used." },
+        since: {
+          type: "string",
+          description:
+            "Optional ISO 8601 timestamp to check from (e.g. '2025-01-01T00:00:00Z'). " +
+            "If omitted, uses the time of the last check (or 1 hour ago on first call).",
+        },
+      },
+      required: ["voice_id"],
+    },
+    handler: async (args, config) => {
+      const voice = getVoice(config, requireString(args, "voice_id"));
+      const token = await getVoiceToken(voice);
+
+      const sinceArg = args.since as string | undefined;
+      const since =
+        sinceArg ?? lastCheckedAt.get(voice.id) ?? new Date(Date.now() - 3600_000).toISOString();
+      const cutoff = new Date(since).getTime();
+
+      const discussions = await gh.getRecentDiscussions(token, config.owner, config.repo, 20);
+
+      const updates = discussions
+        .filter((d) => new Date(d.updatedAt).getTime() > cutoff)
+        .map((d) => {
+          const isNew = new Date(d.createdAt).getTime() > cutoff;
+
+          const newComments = d.comments.nodes.flatMap((c) => {
+            const commentIsNew = new Date(c.createdAt).getTime() > cutoff;
+            const newReplies = c.replies.nodes
+              .filter((r) => new Date(r.createdAt).getTime() > cutoff)
+              .map((r) => ({
+                id: r.id,
+                author: r.author?.login ?? "unknown",
+                body: r.body,
+                createdAt: r.createdAt,
+              }));
+
+            if (commentIsNew) {
+              return [
+                {
+                  id: c.id,
+                  author: c.author?.login ?? "unknown",
+                  body: c.body,
+                  createdAt: c.createdAt,
+                  replies: newReplies,
+                },
+              ];
+            }
+            if (newReplies.length > 0) {
+              return [
+                {
+                  id: c.id,
+                  author: c.author?.login ?? "unknown",
+                  body: c.body.length > 120 ? c.body.slice(0, 120) + "…" : c.body,
+                  createdAt: c.createdAt,
+                  replies: newReplies,
+                },
+              ];
+            }
+            return [];
+          });
+
+          if (!isNew && newComments.length === 0) return null;
+
+          return {
+            number: d.number,
+            title: d.title,
+            url: d.url,
+            isNew,
+            ...(isNew ? { body: d.body, author: d.author?.login ?? "unknown" } : {}),
+            newComments,
+          };
+        })
+        .filter(Boolean);
+
+      lastCheckedAt.set(voice.id, new Date().toISOString());
+
+      return {
+        since,
+        checkedAt: new Date().toISOString(),
+        updatedDiscussions: updates.length,
+        updates,
+      };
     },
   },
 ];

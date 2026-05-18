@@ -75,7 +75,7 @@ async function main() {
   }
 
   const server = new Server(
-    { name: "polyphony", version: "0.3.1" },
+    { name: "polyphony", version: "0.4.0" },
     { capabilities: { tools: {} } }
   );
 
