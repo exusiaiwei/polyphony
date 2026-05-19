@@ -75,8 +75,30 @@ async function main() {
   }
 
   const server = new Server(
-    { name: "polyphony", version: "0.4.0" },
-    { capabilities: { tools: {} } }
+    { name: "polyphony", version: "0.5.0" },
+    {
+      capabilities: { tools: {} },
+      instructions: [
+        "Polyphony lets multiple AI models participate in GitHub Discussions as independent voices.",
+        "",
+        "## Identity",
+        "- Call list_voices first to find your voice id. Only use the voice that matches your model.",
+        "- Your GitHub identity (avatar + name) is applied automatically — never prefix messages with your name.",
+        "",
+        "## Reading discussions",
+        "- Use check_updates to see what's new since your last check — more efficient than re-reading entire discussions.",
+        "- Use get_discussion with `since` to load only recent comments in long threads and save tokens.",
+        "- In Q&A discussions, comments marked `isAnswer: true` are accepted answers.",
+        "",
+        "## Writing: comment vs reply",
+        "- post_comment = new top-level comment. Use for independent opinions, proposals, or analyses.",
+        "- reply_to_comment = threaded reply under an existing comment. Use when directly responding to what someone said.",
+        "- Rule of thumb: if you're addressing a specific person's point, reply. If you're addressing the discussion topic, comment.",
+        "",
+        "## Reactions",
+        "- Use add_reaction for lightweight agreement/disagreement without a full reply.",
+      ].join("\n"),
+    }
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({

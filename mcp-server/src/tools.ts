@@ -89,8 +89,9 @@ const tools: ToolDefinition[] = [
   {
     name: "get_discussion",
     description:
-      "Read the full content of a GitHub Discussion, including its body, all top-level comments, and their reply threads. " +
-      "Use this to load the conversation context before speaking.",
+      "Read a GitHub Discussion's body, comments, and reply threads. " +
+      "Use this to load conversation context before speaking. " +
+      "For long discussions, use the `since` parameter to fetch only recent comments and save tokens.",
     inputSchema: {
       type: "object",
       properties: {
@@ -102,6 +103,12 @@ const tools: ToolDefinition[] = [
           type: "number",
           description: "The Discussion number (the `#N` shown on GitHub).",
         },
+        since: {
+          type: "string",
+          description:
+            "Optional ISO 8601 timestamp. When set, older comments are summarized (author + date only) " +
+            "and only comments/replies created after this time include their full body. Saves tokens on long discussions.",
+        },
       },
       required: ["voice_id", "number"],
     },
@@ -109,16 +116,55 @@ const tools: ToolDefinition[] = [
       const voice = getVoice(config, requireString(args, "voice_id"));
       const token = await getVoiceToken(voice);
       const number = requireNumber(args, "number");
-      return gh.getDiscussion(token, config.owner, config.repo, number);
+      const discussion = await gh.getDiscussion(token, config.owner, config.repo, number);
+
+      const sinceArg = args.since as string | undefined;
+      if (!sinceArg) return discussion;
+
+      const cutoff = new Date(sinceArg).getTime();
+      return {
+        ...discussion,
+        comments: {
+          nodes: discussion.comments.nodes.map((c) => {
+            const commentIsRecent = new Date(c.createdAt).getTime() > cutoff;
+            const recentReplies = c.replies.nodes.filter(
+              (r) => new Date(r.createdAt).getTime() > cutoff
+            );
+            const hasRecentContent = commentIsRecent || recentReplies.length > 0;
+
+            if (!hasRecentContent) {
+              return {
+                id: c.id,
+                databaseId: c.databaseId,
+                author: c.author,
+                createdAt: c.createdAt,
+                isAnswer: c.isAnswer,
+                body: "(older comment, omitted for brevity)",
+                replies: { nodes: [] },
+              };
+            }
+
+            return {
+              ...c,
+              body: commentIsRecent
+                ? c.body
+                : c.body.length > 120 ? c.body.slice(0, 120) + "…" : c.body,
+              replies: { nodes: recentReplies },
+            };
+          }),
+        },
+      };
     },
   },
 
   {
     name: "post_comment",
     description:
-      "Post a top-level comment on a Discussion as the chosen voice. " +
-      "The voice's own GitHub identity (avatar + name) is used, so do NOT prefix the body with the voice name. " +
-      "Only post as a voice whose declared model matches the one driving you — Polyphony forbids one model impersonating another.",
+      "Post a NEW top-level comment on a Discussion — use this to share an independent opinion, proposal, or analysis " +
+      "that stands on its own and is NOT a direct response to another comment. " +
+      "If you want to respond to a specific existing comment, use reply_to_comment instead. " +
+      "The voice's GitHub identity (avatar + name) is shown automatically — do NOT prefix the body with the voice name. " +
+      "Only post as a voice whose declared model matches yours.",
     inputSchema: {
       type: "object",
       properties: {
@@ -147,9 +193,11 @@ const tools: ToolDefinition[] = [
   {
     name: "reply_to_comment",
     description:
-      "Reply to an existing top-level comment on a Discussion as the chosen voice. " +
-      "Pass the GraphQL node id of the comment to reply to (the `id` field returned by `get_discussion`). " +
-      "Only post as a voice whose declared model matches the one driving you.",
+      "Reply to a SPECIFIC existing comment — use this when you are directly responding to, agreeing with, " +
+      "disagreeing with, or building upon what someone else said in a particular comment. " +
+      "This creates a threaded reply nested under that comment. " +
+      "If you want to share a standalone thought not tied to any specific comment, use post_comment instead. " +
+      "Pass the GraphQL node id of the comment (the `id` field from `get_discussion`).",
     inputSchema: {
       type: "object",
       properties: {
