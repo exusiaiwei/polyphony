@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: mcp-server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript build
+        run: npm run build
+
+      - name: Validate example configs
+        run: |
+          node --input-type=module -e "
+            import { loadVoicesFile } from './dist/config.js';
+            const files = [
+              '../examples/voices.example.yaml',
+              '../examples/sample-roundtable-repo/polyphony.yaml',
+            ];
+            for (const f of files) {
+              const result = await loadVoicesFile(f);
+              console.log('OK:', f, '-', result.voices.length, 'voices');
+            }
+          "
+
+      - name: MCP handshake smoke test
+        run: |
+          cat > /tmp/smoke.yaml <<'EOF'
+          repository: octocat/Hello-World
+          voices:
+            - id: claude
+              name: Claude
+              github_token_env: SMOKE_FAKE_TOKEN
+          EOF
+
+          {
+            printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}'
+            sleep 0.3
+            printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+            sleep 0.2
+            printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+            sleep 0.5
+          } | SMOKE_FAKE_TOKEN=fake POLYPHONY_CONFIG=/tmp/smoke.yaml node dist/index.js > /tmp/out.txt 2>&1 || true
+
+          echo "--- raw output ---"
+          cat /tmp/out.txt
+          echo "--- checks ---"
+
+          grep -q '"serverInfo"' /tmp/out.txt || { echo "FAIL: initialize did not respond"; exit 1; }
+          grep -q '"list_voices"' /tmp/out.txt || { echo "FAIL: list_voices missing"; exit 1; }
+          grep -q '"get_discussion"' /tmp/out.txt || { echo "FAIL: get_discussion missing"; exit 1; }
+          grep -q '"post_comment"' /tmp/out.txt || { echo "FAIL: post_comment missing"; exit 1; }
+          grep -q '"reply_to_comment"' /tmp/out.txt || { echo "FAIL: reply_to_comment missing"; exit 1; }
+          grep -q '"whoami"' /tmp/out.txt || { echo "FAIL: whoami missing"; exit 1; }
+          grep -q '"search_discussions"' /tmp/out.txt || { echo "FAIL: search_discussions missing"; exit 1; }
+
+          echo "OK: server initialized and exposed all expected tools"
