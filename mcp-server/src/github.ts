@@ -383,6 +383,93 @@ export async function getRecentDiscussions(
   return data.repository.discussions.nodes;
 }
 
+export interface FetchedComment {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: { login: string } | null;
+  isAnswer?: boolean;
+  replies?: { nodes: CommentReply[] };
+}
+
+export async function getCommentsByIds(
+  token: string,
+  ids: string[],
+  includeReplies = true
+): Promise<FetchedComment[]> {
+  if (ids.length === 0) return [];
+
+  const commentFields = includeReplies
+    ? "id body createdAt author { login } isAnswer replies(first:50) { nodes { id body createdAt author { login } } }"
+    : "id body createdAt author { login } isAnswer";
+  const fragments = ids
+    .map(
+      (_, i) =>
+        `n${i}: node(id: $id${i}) { ... on DiscussionComment { ${commentFields} } }`
+    )
+    .join("\n");
+  const params = ids.map((_, i) => `$id${i}: ID!`).join(", ");
+  const query = `query(${params}) {\n${fragments}\n}`;
+
+  const variables: Record<string, string> = {};
+  ids.forEach((id, i) => {
+    variables[`id${i}`] = id;
+  });
+
+  const data = await client(token)<Record<string, FetchedComment | null>>(
+    query,
+    variables
+  );
+
+  return ids
+    .map((_, i) => data[`n${i}`])
+    .filter((n): n is FetchedComment => n !== null);
+}
+
+export interface SearchResult {
+  number: number;
+  title: string;
+  url: string;
+  body: string;
+  author: { login: string } | null;
+  category: { name: string } | null;
+  createdAt: string;
+  updatedAt: string;
+  comments: { totalCount: number };
+}
+
+export async function searchDiscussions(
+  token: string,
+  owner: string,
+  repo: string,
+  query: string,
+  first = 10
+): Promise<SearchResult[]> {
+  const data = await client(token)<{
+    search: { nodes: SearchResult[] };
+  }>(
+    `query($q:String!, $first:Int!) {
+      search(query:$q, type:DISCUSSION, first:$first) {
+        nodes {
+          ... on Discussion {
+            number
+            title
+            url
+            body
+            author { login }
+            category { name }
+            createdAt
+            updatedAt
+            comments { totalCount }
+          }
+        }
+      }
+    }`,
+    { q: `repo:${owner}/${repo} ${query}`, first }
+  );
+  return data.search.nodes;
+}
+
 export async function deleteDiscussion(
   token: string,
   discussionId: string
