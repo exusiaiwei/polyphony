@@ -75,7 +75,7 @@ async function main() {
   }
 
   const server = new Server(
-    { name: "polyphony", version: "0.5.0" },
+    { name: "polyphony", version: "0.6.0" },
     {
       capabilities: { tools: {} },
       instructions: [
@@ -85,9 +85,14 @@ async function main() {
         "- Call list_voices first to find your voice id. Only use the voice that matches your model.",
         "- Your GitHub identity (avatar + name) is applied automatically — never prefix messages with your name.",
         "",
-        "## Reading discussions",
-        "- Use check_updates to see what's new since your last check — more efficient than re-reading entire discussions.",
-        "- Use get_discussion with `since` to load only recent comments in long threads and save tokens.",
+        "## Reading discussions efficiently",
+        "- Use check_updates to see what's new since your last check.",
+        "- For long discussions, use get_discussion with pagination:",
+        "  - `summary: true` to scan all comments (author + first 100 chars) before diving in.",
+        "  - `include_comments: false` to read only the opening post.",
+        "  - `include_replies: false` to see only top-level comments without nested threads.",
+        "  - `comments_limit` + `comments_after` to page through comments in batches.",
+        "  - `since` to filter out old comments and only show recent activity.",
         "- In Q&A discussions, comments marked `isAnswer: true` are accepted answers.",
         "",
         "## Writing: comment vs reply",

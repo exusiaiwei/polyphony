@@ -90,8 +90,7 @@ const tools: ToolDefinition[] = [
     name: "get_discussion",
     description:
       "Read a GitHub Discussion's body, comments, and reply threads. " +
-      "Use this to load conversation context before speaking. " +
-      "For long discussions, use the `since` parameter to fetch only recent comments and save tokens.",
+      "Supports pagination, summary mode, and filtering to manage token usage on long discussions.",
     inputSchema: {
       type: "object",
       properties: {
@@ -106,8 +105,36 @@ const tools: ToolDefinition[] = [
         since: {
           type: "string",
           description:
-            "Optional ISO 8601 timestamp. When set, older comments are summarized (author + date only) " +
-            "and only comments/replies created after this time include their full body. Saves tokens on long discussions.",
+            "ISO 8601 timestamp. Older comments are summarized (author + date only), " +
+            "only comments after this time include full body.",
+        },
+        comments_limit: {
+          type: "number",
+          description:
+            "Max comments to return per page (default 100). Use with comments_after to paginate long discussions.",
+        },
+        comments_after: {
+          type: "string",
+          description:
+            "Cursor from a previous response's pageInfo.endCursor. Pass this to fetch the next page of comments.",
+        },
+        include_comments: {
+          type: "boolean",
+          description:
+            "Set to false to return only the discussion body (title, author, category) without any comments. " +
+            "Useful when you only need the opening post. Default: true.",
+        },
+        include_replies: {
+          type: "boolean",
+          description:
+            "Set to false to return only top-level comments without nested replies. " +
+            "Useful to get an overview before diving into specific threads. Default: true.",
+        },
+        summary: {
+          type: "boolean",
+          description:
+            "Set to true to return a compact view: each comment shows only author, date, isAnswer, " +
+            "and the first 100 characters of the body. Use to scan a discussion before reading specific comments in full.",
         },
       },
       required: ["voice_id", "number"],
@@ -116,42 +143,74 @@ const tools: ToolDefinition[] = [
       const voice = getVoice(config, requireString(args, "voice_id"));
       const token = await getVoiceToken(voice);
       const number = requireNumber(args, "number");
-      const discussion = await gh.getDiscussion(token, config.owner, config.repo, number);
 
+      const includeComments = args.include_comments !== false;
+      if (!includeComments) {
+        const discussion = await gh.getDiscussion(token, config.owner, config.repo, number, 0);
+        const { comments: _, ...bodyOnly } = discussion;
+        return bodyOnly;
+      }
+
+      const commentsLimit = optionalNumber(args, "comments_limit", 100);
+      const commentsAfter = args.comments_after as string | undefined;
+      const discussion = await gh.getDiscussion(
+        token, config.owner, config.repo, number, commentsLimit, commentsAfter
+      );
+
+      const includeReplies = args.include_replies !== false;
+      const summaryMode = args.summary === true;
       const sinceArg = args.since as string | undefined;
-      if (!sinceArg) return discussion;
+      const cutoff = sinceArg ? new Date(sinceArg).getTime() : 0;
 
-      const cutoff = new Date(sinceArg).getTime();
+      const processedComments = discussion.comments.nodes.map((c) => {
+        const commentIsRecent = !sinceArg || new Date(c.createdAt).getTime() > cutoff;
+
+        if (sinceArg && !commentIsRecent) {
+          const recentReplies = includeReplies
+            ? c.replies.nodes.filter((r) => new Date(r.createdAt).getTime() > cutoff)
+            : [];
+          if (recentReplies.length === 0) {
+            return {
+              id: c.id,
+              author: c.author,
+              createdAt: c.createdAt,
+              isAnswer: c.isAnswer,
+              body: "(older comment, omitted)",
+              replies: { nodes: [] },
+            };
+          }
+          return {
+            ...c,
+            body: c.body.length > 120 ? c.body.slice(0, 120) + "…" : c.body,
+            replies: { nodes: recentReplies },
+          };
+        }
+
+        if (summaryMode) {
+          return {
+            id: c.id,
+            author: c.author,
+            createdAt: c.createdAt,
+            isAnswer: c.isAnswer,
+            body: c.body.length > 100 ? c.body.slice(0, 100) + "…" : c.body,
+            ...(includeReplies
+              ? { repliesCount: c.replies.nodes.length }
+              : {}),
+          };
+        }
+
+        return {
+          ...c,
+          replies: includeReplies ? c.replies : { nodes: [] },
+        };
+      });
+
       return {
         ...discussion,
         comments: {
-          nodes: discussion.comments.nodes.map((c) => {
-            const commentIsRecent = new Date(c.createdAt).getTime() > cutoff;
-            const recentReplies = c.replies.nodes.filter(
-              (r) => new Date(r.createdAt).getTime() > cutoff
-            );
-            const hasRecentContent = commentIsRecent || recentReplies.length > 0;
-
-            if (!hasRecentContent) {
-              return {
-                id: c.id,
-                databaseId: c.databaseId,
-                author: c.author,
-                createdAt: c.createdAt,
-                isAnswer: c.isAnswer,
-                body: "(older comment, omitted for brevity)",
-                replies: { nodes: [] },
-              };
-            }
-
-            return {
-              ...c,
-              body: commentIsRecent
-                ? c.body
-                : c.body.length > 120 ? c.body.slice(0, 120) + "…" : c.body,
-              replies: { nodes: recentReplies },
-            };
-          }),
+          totalCount: discussion.comments.totalCount,
+          pageInfo: discussion.comments.pageInfo,
+          nodes: processedComments,
         },
       };
     },

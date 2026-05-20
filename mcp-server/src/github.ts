@@ -58,6 +58,12 @@ export interface Comment extends CommentReply {
   replies: { nodes: CommentReply[] };
 }
 
+export interface CommentsPage {
+  totalCount: number;
+  pageInfo: { endCursor: string | null; hasNextPage: boolean };
+  nodes: Comment[];
+}
+
 export interface Discussion {
   id: string;
   number: number;
@@ -67,17 +73,19 @@ export interface Discussion {
   createdAt: string;
   author: { login: string } | null;
   category: { name: string } | null;
-  comments: { nodes: Comment[] };
+  comments: CommentsPage;
 }
 
 export async function getDiscussion(
   token: string,
   owner: string,
   repo: string,
-  number: number
+  number: number,
+  commentsFirst = 100,
+  commentsAfter?: string
 ): Promise<Discussion> {
   const data = await client(token)<{ repository: { discussion: Discussion } }>(
-    `query($owner:String!, $repo:String!, $number:Int!) {
+    `query($owner:String!, $repo:String!, $number:Int!, $commentsFirst:Int!, $commentsAfter:String) {
       repository(owner:$owner, name:$repo) {
         discussion(number:$number) {
           id
@@ -88,7 +96,9 @@ export async function getDiscussion(
           createdAt
           author { login }
           category { name }
-          comments(first:100) {
+          comments(first:$commentsFirst, after:$commentsAfter) {
+            totalCount
+            pageInfo { endCursor hasNextPage }
             nodes {
               id
               databaseId
@@ -110,7 +120,7 @@ export async function getDiscussion(
         }
       }
     }`,
-    { owner, repo, number }
+    { owner, repo, number, commentsFirst, commentsAfter: commentsAfter ?? null }
   );
   return data.repository.discussion;
 }
