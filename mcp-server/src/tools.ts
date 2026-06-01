@@ -4,6 +4,29 @@ import * as gh from "./github.js";
 
 const lastCheckedAt = new Map<string, string>();
 
+/* ── Webhook notification ─────────────────────────────────────────── */
+
+async function notifyWebhook(
+  event: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  const url = process.env.POLYPHONY_WEBHOOK_URL;
+  if (!url) return;
+
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, timestamp: new Date().toISOString(), ...data }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    // Fire-and-forget: webhook failures must never break tool execution
+  }
+}
+
+/* ── Helpers ──────────────────────────────────────────────────────── */
+
 function stripMarkdown(text: string): string {
   return text
     .replace(/```[\s\S]*?```/g, "[code]")
@@ -286,7 +309,11 @@ const tools: ToolDefinition[] = [
       const number = requireNumber(args, "discussion_number");
       const body = requireString(args, "body");
       const discussionId = await gh.getDiscussionId(token, config.owner, config.repo, number);
-      return gh.addDiscussionComment(token, discussionId, body);
+      const result = await gh.addDiscussionComment(token, discussionId, body);
+      await notifyWebhook("comment.created", {
+        voice_id: voice.id, discussion_number: number, comment_id: (result as any).id,
+      });
+      return result;
     },
   },
 
@@ -323,7 +350,12 @@ const tools: ToolDefinition[] = [
       const discussionId = await gh.getDiscussionId(token, config.owner, config.repo, number);
 
       try {
-        return await gh.addDiscussionComment(token, discussionId, body, commentId);
+        const result = await gh.addDiscussionComment(token, discussionId, body, commentId);
+        await notifyWebhook("reply.created", {
+          voice_id: voice.id, discussion_number: number,
+          comment_id: commentId,
+        });
+        return result;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (!msg.toLowerCase().includes("reply") && !msg.toLowerCase().includes("thread")) {
@@ -354,7 +386,12 @@ const tools: ToolDefinition[] = [
 
         const quotedBody = `> @${targetAuthor} wrote: ${targetPreview}\n\n${body}`;
         const result = await gh.addDiscussionComment(token, discussionId, quotedBody, parentId);
-        return { ...result, _redirected: { from: commentId, to: parentId, reason: "nested reply auto-promoted" } };
+        const final = { ...result, _redirected: { from: commentId, to: parentId, reason: "nested reply auto-promoted" } };
+        await notifyWebhook("reply.created", {
+          voice_id: voice.id, discussion_number: number,
+          comment_id: parentId, redirected_from: commentId,
+        });
+        return final;
       }
     },
   },
@@ -380,7 +417,11 @@ const tools: ToolDefinition[] = [
       const token = await getVoiceToken(voice);
       const commentId = requireString(args, "comment_id");
       const body = requireString(args, "body");
-      return gh.updateDiscussionComment(token, commentId, body);
+      const result = await gh.updateDiscussionComment(token, commentId, body);
+      await notifyWebhook("comment.edited", {
+        voice_id: voice.id, comment_id: commentId,
+      });
+      return result;
     },
   },
 
@@ -455,7 +496,12 @@ const tools: ToolDefinition[] = [
         config.repo,
         category
       );
-      return gh.createDiscussion(token, repoId, categoryId, title, body);
+      const result = await gh.createDiscussion(token, repoId, categoryId, title, body);
+      await notifyWebhook("discussion.created", {
+        voice_id: voice.id, discussion_number: (result as any).number,
+        title,
+      });
+      return result;
     },
   },
 
@@ -479,7 +525,11 @@ const tools: ToolDefinition[] = [
       const token = await getVoiceToken(voice);
       const number = requireNumber(args, "discussion_number");
       const discussionId = await gh.getDiscussionId(token, config.owner, config.repo, number);
-      return gh.deleteDiscussion(token, discussionId);
+      const result = await gh.deleteDiscussion(token, discussionId);
+      await notifyWebhook("discussion.deleted", {
+        voice_id: voice.id, discussion_number: number,
+      });
+      return result;
     },
   },
 

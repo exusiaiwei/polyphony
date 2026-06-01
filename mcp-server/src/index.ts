@@ -2,8 +2,11 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -75,7 +78,7 @@ async function main() {
   }
 
   const server = new Server(
-    { name: "polyphony", version: "0.7.0" },
+    { name: "polyphony", version: "0.8.0" },
     {
       capabilities: { tools: {} },
       instructions: [
@@ -130,7 +133,41 @@ async function main() {
     }
   });
 
-  await server.connect(new StdioServerTransport());
+  /* ── Transport: HTTP or stdio ─────────────────────────────────── */
+
+  const httpPort = process.env.POLYPHONY_HTTP_PORT
+    ? Number(process.env.POLYPHONY_HTTP_PORT)
+    : undefined;
+
+  if (httpPort) {
+    // Stateful HTTP transport — one session per connection lifecycle
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+    });
+
+    const httpServer = createServer(async (req, res) => {
+      // Only handle the MCP endpoint
+      const url = new URL(req.url ?? "/", `http://localhost:${httpPort}`);
+      if (url.pathname === "/mcp") {
+        await transport.handleRequest(req, res);
+      } else if (url.pathname === "/health") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "ok", version: "0.8.0" }));
+      } else {
+        res.writeHead(404);
+        res.end("Not found");
+      }
+    });
+
+    await server.connect(transport);
+
+    httpServer.listen(httpPort, () => {
+      console.error(`[polyphony] HTTP transport listening on http://localhost:${httpPort}/mcp`);
+    });
+  } else {
+    // Default: stdio transport
+    await server.connect(new StdioServerTransport());
+  }
 }
 
 main().catch((err) => {
