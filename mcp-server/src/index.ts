@@ -97,7 +97,7 @@ async function main() {
   /* ── MCP server mode ──────────────────────────────────────────── */
 
   const server = new Server(
-    { name: "polyphony", version: "0.8.0" },
+    { name: "polyphony", version: "0.9.0" },
     {
       capabilities: { tools: {} },
       instructions: [
@@ -171,7 +171,7 @@ async function main() {
         await transport.handleRequest(req, res);
       } else if (url.pathname === "/health") {
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ status: "ok", version: "0.8.0" }));
+        res.end(JSON.stringify({ status: "ok", version: "0.9.0" }));
       } else {
         res.writeHead(404);
         res.end("Not found");
