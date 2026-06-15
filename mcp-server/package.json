@@ -21,6 +21,7 @@
   },
   "type": "module",
   "bin": {
+    "polyphony": "dist/index.js",
     "polyphony-mcp": "dist/index.js"
   },
   "files": [

@@ -18,6 +18,7 @@ import {
   loadRepoFile,
 } from "./config.js";
 import { callTool, listToolDescriptors } from "./tools.js";
+import { getCliCommand, runCli } from "./cli.js";
 
 function resolveVoicesPath(): string {
   if (process.env.POLYPHONY_CONFIG) {
@@ -66,6 +67,14 @@ async function resolveRepository(
 }
 
 async function main() {
+  /* ── CLI: intercept help before config loads ──────────────────── */
+
+  const cliCmd = getCliCommand(process.argv);
+  if (cliCmd === "help") {
+    runCli(process.argv, undefined!);
+    return;
+  }
+
   const voicesPath = resolveVoicesPath();
   const { voices, repository: legacyRepo } = await loadVoicesFile(voicesPath);
 
@@ -76,6 +85,16 @@ async function main() {
     cachedConfig = buildConfig(voices, repository);
     return cachedConfig;
   }
+
+  /* ── CLI mode: subcommand detected ────────────────────────────── */
+
+  if (cliCmd) {
+    const config = await getConfig();
+    await runCli(process.argv, config);
+    return;
+  }
+
+  /* ── MCP server mode ──────────────────────────────────────────── */
 
   const server = new Server(
     { name: "polyphony", version: "0.8.0" },

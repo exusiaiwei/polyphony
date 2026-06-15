@@ -1,18 +1,28 @@
 import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
 import { parse } from "yaml";
 import { z } from "zod";
 import { getInstallationToken } from "./auth.js";
+
+function expandHome(p: string): string {
+  if (p.startsWith("~/") || p === "~") {
+    return resolve(homedir(), p.slice(2));
+  }
+  return p;
+}
 
 const GitHubAppSchema = z
   .object({
     app_id: z.number().int().positive(),
     installation_id: z.number().int().positive(),
+    private_key_path: z.string().min(1).optional(),
     private_key_path_env: z.string().min(1).optional(),
     private_key_env: z.string().min(1).optional(),
   })
-  .refine((a) => a.private_key_path_env || a.private_key_env, {
+  .refine((a) => a.private_key_path || a.private_key_path_env || a.private_key_env, {
     message:
-      "github_app needs either private_key_path_env (path to .pem) or private_key_env (PEM content).",
+      "github_app needs one of: private_key_path (file path), private_key_path_env (env var → path), or private_key_env (env var → PEM content).",
   });
 
 const VoiceSchema = z
@@ -97,6 +107,8 @@ export async function getVoiceToken(voice: Voice): Promise<string> {
           `Missing env var ${app.private_key_env} (should contain PEM content) for voice "${voice.id}".`
         );
       }
+    } else if (app.private_key_path) {
+      privateKeyPem = await readFile(expandHome(app.private_key_path), "utf-8");
     } else if (app.private_key_path_env) {
       const keyPath = process.env[app.private_key_path_env];
       if (!keyPath) {
@@ -104,7 +116,6 @@ export async function getVoiceToken(voice: Voice): Promise<string> {
           `Missing env var ${app.private_key_path_env} (should point to .pem file) for voice "${voice.id}".`
         );
       }
-      const { readFile } = await import("node:fs/promises");
       privateKeyPem = await readFile(keyPath, "utf-8");
     }
 
