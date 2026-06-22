@@ -123,7 +123,13 @@ function printUsage(): void {
     console.error(`  ${spec.usage}`);
   }
   console.error("\nRun without arguments to start as MCP server.");
-  console.error("Body argument: inline text, '-' for stdin, or '@path' to read from file.");
+  console.error("");
+  console.error("Body input (for post-comment, reply, edit, create-discussion):");
+  console.error("  polyphony post-comment 42 \"short inline text\"");
+  console.error("  polyphony post-comment 42 @/tmp/body.md          # read from file (recommended for long text)");
+  console.error("  polyphony post-comment 42 - <<'EOF'              # heredoc via stdin");
+  console.error("  Long markdown body here...");
+  console.error("  EOF");
 }
 
 const metaCommands = new Set(["help", "--help", "-h"]);
