@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import type { Config } from "./config.js";
 import { callTool } from "./tools.js";
 
@@ -45,7 +46,7 @@ const subcommands: Record<string, SubcommandSpec> = {
   },
   "post-comment": {
     tool: "post_comment",
-    usage: "post-comment <number> <body | ->",
+    usage: "post-comment <number> <body | - | @file>",
     positional: [
       { name: "discussion_number", type: "number" },
       { name: "body", type: "string" },
@@ -53,7 +54,7 @@ const subcommands: Record<string, SubcommandSpec> = {
   },
   reply: {
     tool: "reply_to_comment",
-    usage: "reply <number> <comment_id> <body | ->",
+    usage: "reply <number> <comment_id> <body | - | @file>",
     positional: [
       { name: "discussion_number", type: "number" },
       { name: "comment_id", type: "string" },
@@ -62,7 +63,7 @@ const subcommands: Record<string, SubcommandSpec> = {
   },
   edit: {
     tool: "edit_comment",
-    usage: "edit <comment_id> <body | ->",
+    usage: "edit <comment_id> <body | - | @file>",
     positional: [
       { name: "comment_id", type: "string" },
       { name: "body", type: "string" },
@@ -78,7 +79,7 @@ const subcommands: Record<string, SubcommandSpec> = {
   },
   "create-discussion": {
     tool: "create_discussion",
-    usage: "create-discussion <title> <body | -> <category>",
+    usage: "create-discussion <title> <body | - | @file> <category>",
     positional: [
       { name: "title", type: "string" },
       { name: "body", type: "string" },
@@ -122,7 +123,7 @@ function printUsage(): void {
     console.error(`  ${spec.usage}`);
   }
   console.error("\nRun without arguments to start as MCP server.");
-  console.error("Use '-' as body argument to read from stdin.");
+  console.error("Body argument: inline text, '-' for stdin, or '@path' to read from file.");
 }
 
 const metaCommands = new Set(["help", "--help", "-h"]);
@@ -228,8 +229,12 @@ export async function runCli(argv: string[], config: Config): Promise<void> {
         process.exit(1);
       }
 
-      if (value === "-" && p.name === "body") {
-        value = await readStdin();
+      if (p.name === "body") {
+        if (value === "-") {
+          value = await readStdin();
+        } else if (value.startsWith("@")) {
+          value = await readFile(value.slice(1), "utf-8");
+        }
       }
 
       if (p.type === "number") {
