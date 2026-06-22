@@ -1,6 +1,6 @@
 {
   "name": "polyphony-mcp",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Reference MCP server for the Polyphony protocol — let any model participate in GitHub Discussions as an independent voice.",
   "keywords": [
     "mcp",
